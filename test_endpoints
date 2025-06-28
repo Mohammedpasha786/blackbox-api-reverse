@@ -1,0 +1,16 @@
+import requests
+
+ENDPOINT = "https://blackbox-interface.vercel.app/api/"
+
+def test_endpoint(name, data):
+    url = ENDPOINT + name
+    res = requests.post(url, json=data)
+    print(f"\n[+] Testing {name}")
+    print("Input:", data)
+    print("Output:", res.json())
+
+# Example tests
+test_endpoint("decode", {"data": "SGVsbG8gd29ybGQ="})
+test_endpoint("lengthgate", {"text": "short"})
+test_endpoint("lengthgate", {"text": "this is long enough"})
+test_endpoint("filter", {"text": "education"})
