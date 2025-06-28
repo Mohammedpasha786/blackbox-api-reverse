@@ -1,0 +1,22 @@
+# 🔬 Endpoint Behavior Log
+
+---
+
+## `/api/decode`
+- **Input:** JSON `{ "data": "<base64_string>" }`
+- **Output:** Decoded UTF-8 string
+- **Error:** If invalid base64, returns error
+
+---
+
+## `/api/lengthgate`
+- **Behavior:** Returns:
+  - `{ "status": "ok" }` if `len(text) > 10`
+  - `{ "status": "fail" }` otherwise
+
+---
+
+## `/api/filter`
+- **Input:** `{ "text": "education" }`
+- **Output:** `{ "result": "dctn" }`
+- **Action:** Removes vowels from input text
