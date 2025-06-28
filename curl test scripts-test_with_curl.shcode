@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# Blackbox API Testing with cURL
+# Make sure your API is running on localhost:5000
+
+BASE_URL="http://localhost:5000"
+
+echo "=== Blackbox API Reverse Engineering - cURL Tests ==="
+echo "Testing against: $BASE_URL"
+echo ""
+
+# Health check
+echo "Health Check:"
+curl -s "$BASE_URL/health" | jq '.'
+echo ""
+
+# Test /api/transform
+echo "=== Testing /api/transform ==="
+echo "Test 1: Even length input (6 chars)"
+curl -s -X POST "$BASE_URL/api/transform" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "hello!"}' | jq '.'
+echo ""
+
+echo "Test 2: Odd length input (5 chars)"
+curl -s -X POST "$BASE_URL/api/transform" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "world"}' | jq '.'
+echo ""
+
+echo "Test 3: Base64 input (odd length)"
+curl -s -X POST "$BASE_URL/api/transform" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "aGVsbG8="}' | jq '.'
+echo ""
+
+# Test /api/cipher
+echo "=== Testing /api/cipher ==="
+echo "Test 1: Simple text"
+curl -s -X POST "$BASE_URL/api/cipher" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "hello"}' | jq '.'
+echo ""
+
+echo "Test 2: Same text (different time)"
+sleep 2
+curl -s -X POST "$BASE_URL/api/cipher" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "hello"}' | jq '.'
+echo ""
+
+# Test /api/filter
+echo "=== Testing /api/filter ==="
+echo "Test 1: Word array"
+curl -s -X POST "$BASE_URL/api/filter" \
+  -H "Content-Type: application/json" \
+  -d '{"words": ["hello", "world", "test", "code", "api"]}' | jq '.'
+echo ""
+
+echo "Test 2: String input"
+curl -s -X POST "$BASE_URL/api/filter" \
+  -H "Content-Type: application/json" \
+  -d '{"words": "hello world test code api"}' | jq '.'
+echo ""
+
+# Test /api/sequence
+echo "=== Testing /api/sequence ==="
+echo "Test 1: Seed 1"
+curl -s -X POST "$BASE_URL/api/sequence" \
+  -H "Content-Type: application/json" \
+  -d '{"seed": 1, "length": 8}' | jq '.'
+echo ""
+
+echo "Test 2: Seed 2"
+curl -s -X POST "$BASE_URL/api/sequence" \
+  -H "Content-Type: application/json" \
+  -d '{"seed": 2, "length": 8}' | jq '.'
+echo ""
+
+# Test /api/mirror
+echo "=== Testing /api/mirror ==="
+echo "Test 1: Simple text"
+curl -s -X POST "$BASE_URL/api/mirror" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "hello"}' | jq '.'
+echo ""
+
+echo "Test 2: Text with numbers"
+curl -s -X POST "$BASE_URL/api/mirror" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "hello123world"}' | jq '.'
+echo ""
+
+# Test /api/chaos
+echo "=== Testing /api/chaos ==="
+echo "Test 1: Empty payload"
+curl -s -X POST "$BASE_URL/api/chaos" \
+  -H "Content-Type: application/json" \
+  -d '{}' | jq '.'
+echo ""
+
+echo "Test 2: Lucky keyword"
+curl -s -X POST "$BASE_URL/api/chaos" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "feeling lucky today!"}' | jq '.'
+echo ""
+
+echo "Test 3: Long input"
+curl -s -X POST "$BASE_URL/api/chaos" \
+  -H "Content-Type: application/json" \
+  -d '{"data": "This is a very long input string that exceeds fifty characters to trigger verbose mode"}' | jq '.'
+echo ""
+
+echo "Test 4: Numeric input"
+curl -s -X POST "$BASE_URL/api/chaos" \
+  -H "Content-Type: application/json" \
+  -d '{"numbers": [1, 2, 3, 4, 5]}' | jq '.'
+echo ""
+
+echo "=== cURL Tests Complete ==="
