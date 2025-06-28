@@ -1,0 +1,514 @@
+#!/usr/bin/env python3
+"""
+Black Box API Challenge Backend
+Flask application with mysterious API endpoints
+"""
+
+from flask import Flask, request, jsonify
+import json
+import base64
+import hashlib
+import random
+import string
+import time
+from datetime import datetime
+import re
+
+app = Flask(__name__)
+app.secret_key = 'blackbox_challenge_2024'
+
+# Global state for some endpoints
+global_counter = 0
+user_sessions = {}
+memory_bank = []
+
+@app.route('/')
+def home():
+    """Landing page with available endpoints"""
+    endpoints = {
+        "message": "Welcome to the Black Box API Challenge!",
+        "description": "Reverse-engineer these mysterious endpoints",
+        "available_endpoints": {
+            "/api/echo": "POST - Something about echoing?",
+            "/api/transform": "POST - Transforms input somehow",
+            "/api/validate": "POST - Validates something",
+            "/api/cipher": "POST - Cryptographic operations?",
+            "/api/counter": "POST - Counting mechanism",
+            "/api/filter": "POST - Filters data",
+            "/api/memory": "POST - Memory operations",
+            "/api/puzzle": "POST - A puzzle to solve",
+            "/api/random": "GET - Random data generator",
+            "/api/time": "GET - Time-related endpoint"
+        },
+        "hint": "Each endpoint has unique behavior. Experiment with different inputs!"
+    }
+    return jsonify(endpoints)
+
+@app.route('/api/echo', methods=['POST'])
+def mysterious_echo():
+    """
+    Endpoint 1: Echo with a twist
+    Behavior: Reverses strings, doubles numbers, returns special responses for certain inputs
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        if 'text' in data:
+            text = str(data['text'])
+            if text.lower() == 'hello':
+                return jsonify({"response": "world", "reversed": True})
+            elif text.isdigit():
+                return jsonify({"response": int(text) * 2, "operation": "doubled"})
+            elif len(text) > 50:
+                return jsonify({"response": "too_long", "length": len(text)})
+            else:
+                return jsonify({"response": text[::-1], "operation": "reversed"})
+        
+        return jsonify({"error": "Missing 'text' field"})
+    
+    except Exception as e:
+        return jsonify({"error": "Invalid input"}), 400
+
+@app.route('/api/transform', methods=['POST'])
+def data_transformer():
+    """
+    Endpoint 2: Data Transformer
+    Behavior: Base64 encodes/decodes based on input format
+    """
+    try:
+        data = request.get_json()
+        if not data or 'data' not in data:
+            return jsonify({"error": "Missing 'data' field"}), 400
+        
+        input_data = str(data['data'])
+        
+        # Check if input looks like base64
+        try:
+            decoded = base64.b64decode(input_data)
+            decoded_str = decoded.decode('utf-8')
+            return jsonify({
+                "result": decoded_str,
+                "operation": "base64_decode",
+                "original_length": len(input_data)
+            })
+        except:
+            # Not base64, so encode it
+            encoded = base64.b64encode(input_data.encode('utf-8')).decode('utf-8')
+            return jsonify({
+                "result": encoded,
+                "operation": "base64_encode",
+                "original_length": len(input_data)
+            })
+    
+    except Exception as e:
+        return jsonify({"error": "Processing failed"}), 400
+
+@app.route('/api/validate', methods=['POST'])
+def input_validator():
+    """
+    Endpoint 3: Input Validator
+    Behavior: Validates different types of data with specific rules
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        validations = {}
+        
+        if 'email' in data:
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            validations['email'] = bool(re.match(email_pattern, str(data['email'])))
+        
+        if 'password' in data:
+            pwd = str(data['password'])
+            validations['password'] = {
+                'valid': len(pwd) >= 8 and any(c.isupper() for c in pwd) and any(c.isdigit() for c in pwd),
+                'length': len(pwd),
+                'has_uppercase': any(c.isupper() for c in pwd),
+                'has_digit': any(c.isdigit() for c in pwd)
+            }
+        
+        if 'number' in data:
+            try:
+                num = float(data['number'])
+                validations['number'] = {
+                    'valid': True,
+                    'is_integer': num.is_integer(),
+                    'is_positive': num > 0,
+                    'range': 'small' if abs(num) < 100 else 'large'
+                }
+            except:
+                validations['number'] = {'valid': False}
+        
+        return jsonify({"validations": validations, "timestamp": datetime.now().isoformat()})
+    
+    except Exception as e:
+        return jsonify({"error": "Validation failed"}), 400
+
+@app.route('/api/cipher', methods=['POST'])
+def cipher_operations():
+    """
+    Endpoint 4: Cipher Operations
+    Behavior: Caesar cipher with dynamic shift based on input length
+    """
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"error": "Missing 'message' field"}), 400
+        
+        message = str(data['message'])
+        operation = data.get('operation', 'encrypt')
+        
+        # Dynamic shift based on message length
+        shift = len(message) % 26
+        
+        def caesar_cipher(text, shift_val, decrypt=False):
+            if decrypt:
+                shift_val = -shift_val
+            result = ""
+            for char in text:
+                if char.isalpha():
+                    ascii_offset = 65 if char.isupper() else 97
+                    result += chr((ord(char) - ascii_offset + shift_val) % 26 + ascii_offset)
+                else:
+                    result += char
+            return result
+        
+        if operation == 'decrypt':
+            result = caesar_cipher(message, shift, decrypt=True)
+            return jsonify({
+                "result": result,
+                "operation": "decrypt",
+                "shift_used": shift,
+                "hint": "shift based on message length"
+            })
+        else:
+            result = caesar_cipher(message, shift)
+            return jsonify({
+                "result": result,
+                "operation": "encrypt",
+                "shift_used": shift,
+                "hint": "shift based on message length"
+            })
+    
+    except Exception as e:
+        return jsonify({"error": "Cipher operation failed"}), 400
+
+@app.route('/api/counter', methods=['POST'])
+def global_counter():
+    """
+    Endpoint 5: Global Counter
+    Behavior: Maintains a global counter with different operations
+    """
+    global global_counter
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        operation = data.get('operation', 'get')
+        value = data.get('value', 1)
+        
+        if operation == 'increment':
+            global_counter += int(value)
+        elif operation == 'decrement':
+            global_counter = max(0, global_counter - int(value))
+        elif operation == 'reset':
+            global_counter = 0
+        elif operation == 'set':
+            global_counter = int(value)
+        elif operation == 'multiply':
+            global_counter *= int(value)
+        
+        return jsonify({
+            "current_value": global_counter,
+            "operation_performed": operation,
+            "timestamp": time.time()
+        })
+    
+    except Exception as e:
+        return jsonify({"error": "Counter operation failed"}), 400
+
+@app.route('/api/filter', methods=['POST'])
+def data_filter():
+    """
+    Endpoint 6: Data Filter
+    Behavior: Filters data based on various criteria
+    """
+    try:
+        data = request.get_json()
+        if not data or 'items' not in data:
+            return jsonify({"error": "Missing 'items' field"}), 400
+        
+        items = data['items']
+        filter_type = data.get('filter', 'even_length')
+        
+        if not isinstance(items, list):
+            return jsonify({"error": "Items must be a list"}), 400
+        
+        filtered_items = []
+        
+        if filter_type == 'even_length':
+            filtered_items = [item for item in items if len(str(item)) % 2 == 0]
+        elif filter_type == 'contains_vowel':
+            vowels = 'aeiouAEIOU'
+            filtered_items = [item for item in items if any(v in str(item) for v in vowels)]
+        elif filter_type == 'numeric':
+            filtered_items = [item for item in items if str(item).isdigit()]
+        elif filter_type == 'palindrome':
+            filtered_items = [item for item in items if str(item) == str(item)[::-1]]
+        elif filter_type == 'long':
+            filtered_items = [item for item in items if len(str(item)) > 5]
+        else:
+            filtered_items = items
+        
+        return jsonify({
+            "filtered_items": filtered_items,
+            "filter_applied": filter_type,
+            "original_count": len(items),
+            "filtered_count": len(filtered_items)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": "Filter operation failed"}), 400
+
+@app.route('/api/memory', methods=['POST'])
+def memory_operations():
+    """
+    Endpoint 7: Memory Operations
+    Behavior: Stores and retrieves data with special behaviors
+    """
+    global memory_bank
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        operation = data.get('operation', 'store')
+        
+        if operation == 'store':
+            item = data.get('item')
+            if item:
+                memory_bank.append({
+                    "data": item,
+                    "timestamp": datetime.now().isoformat(),
+                    "id": len(memory_bank)
+                })
+                return jsonify({
+                    "status": "stored",
+                    "item_id": len(memory_bank) - 1,
+                    "total_items": len(memory_bank)
+                })
+        
+        elif operation == 'retrieve':
+            item_id = data.get('id')
+            if item_id is not None and 0 <= item_id < len(memory_bank):
+                return jsonify({
+                    "status": "found",
+                    "item": memory_bank[item_id]
+                })
+            else:
+                return jsonify({"status": "not_found"})
+        
+        elif operation == 'list':
+            return jsonify({
+                "status": "success",
+                "items": memory_bank,
+                "count": len(memory_bank)
+            })
+        
+        elif operation == 'clear':
+            memory_bank.clear()
+            return jsonify({"status": "cleared"})
+        
+        elif operation == 'search':
+            query = str(data.get('query', ''))
+            matches = [item for item in memory_bank 
+                      if query.lower() in str(item['data']).lower()]
+            return jsonify({
+                "status": "searched",
+                "matches": matches,
+                "query": query
+            })
+        
+        return jsonify({"error": "Invalid operation"}), 400
+    
+    except Exception as e:
+        return jsonify({"error": "Memory operation failed"}), 400
+
+@app.route('/api/puzzle', methods=['POST'])
+def puzzle_solver():
+    """
+    Endpoint 8: Puzzle Solver
+    Behavior: Solves different types of puzzles or provides hints
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No puzzle provided"}), 400
+        
+        puzzle_type = data.get('type', 'math')
+        puzzle_data = data.get('data')
+        
+        if puzzle_type == 'math':
+            if isinstance(puzzle_data, str):
+                try:
+                    # Simple math expression evaluation (safe)
+                    if all(c in '0123456789+-*/() .' for c in puzzle_data):
+                        result = eval(puzzle_data)
+                        return jsonify({
+                            "answer": result,
+                            "expression": puzzle_data,
+                            "type": "math"
+                        })
+                except:
+                    pass
+        
+        elif puzzle_type == 'sequence':
+            if isinstance(puzzle_data, list) and len(puzzle_data) >= 3:
+                # Try to find pattern in sequence
+                diffs = [puzzle_data[i+1] - puzzle_data[i] for i in range(len(puzzle_data)-1)]
+                if all(d == diffs[0] for d in diffs):  # Arithmetic sequence
+                    next_val = puzzle_data[-1] + diffs[0]
+                    return jsonify({
+                        "next_value": next_val,
+                        "pattern": "arithmetic",
+                        "difference": diffs[0]
+                    })
+        
+        elif puzzle_type == 'word':
+            word = str(puzzle_data)
+            return jsonify({
+                "anagrams_possible": len(word) <= 8,
+                "palindrome": word == word[::-1],
+                "vowel_count": sum(1 for c in word.lower() if c in 'aeiou'),
+                "suggestion": "Try reversing or rearranging letters"
+            })
+        
+        return jsonify({
+            "status": "unsolved",
+            "hint": "Try different puzzle types: math, sequence, word",
+            "received_type": puzzle_type
+        })
+    
+    except Exception as e:
+        return jsonify({"error": "Puzzle solving failed"}), 400
+
+@app.route('/api/random', methods=['GET'])
+def random_generator():
+    """
+    Endpoint 9: Random Generator
+    Behavior: Generates different types of random data based on query parameters
+    """
+    try:
+        data_type = request.args.get('type', 'number')
+        count = min(int(request.args.get('count', 1)), 100)  # Limit to 100
+        
+        if data_type == 'number':
+            min_val = int(request.args.get('min', 1))
+            max_val = int(request.args.get('max', 100))
+            numbers = [random.randint(min_val, max_val) for _ in range(count)]
+            return jsonify({
+                "data": numbers if count > 1 else numbers[0],
+                "type": "number",
+                "range": f"{min_val}-{max_val}"
+            })
+        
+        elif data_type == 'string':
+            length = min(int(request.args.get('length', 10)), 50)
+            strings = [''.join(random.choices(string.ascii_letters + string.digits, k=length)) 
+                      for _ in range(count)]
+            return jsonify({
+                "data": strings if count > 1 else strings[0],
+                "type": "string",
+                "length": length
+            })
+        
+        elif data_type == 'boolean':
+            booleans = [random.choice([True, False]) for _ in range(count)]
+            return jsonify({
+                "data": booleans if count > 1 else booleans[0],
+                "type": "boolean"
+            })
+        
+        elif data_type == 'color':
+            colors = [f"#{random.randint(0, 0xFFFFFF):06x}" for _ in range(count)]
+            return jsonify({
+                "data": colors if count > 1 else colors[0],
+                "type": "color"
+            })
+        
+        return jsonify({"error": "Invalid type. Use: number, string, boolean, color"})
+    
+    except Exception as e:
+        return jsonify({"error": "Random generation failed"}), 400
+
+@app.route('/api/time', methods=['GET'])
+def time_operations():
+    """
+    Endpoint 10: Time Operations
+    Behavior: Time-related operations and conversions
+    """
+    try:
+        operation = request.args.get('op', 'current')
+        
+        if operation == 'current':
+            return jsonify({
+                "timestamp": time.time(),
+                "iso": datetime.now().isoformat(),
+                "formatted": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "timezone": "UTC"
+            })
+        
+        elif operation == 'convert':
+            timestamp = request.args.get('timestamp')
+            if timestamp:
+                dt = datetime.fromtimestamp(float(timestamp))
+                return jsonify({
+                    "original_timestamp": float(timestamp),
+                    "converted": {
+                        "iso": dt.isoformat(),
+                        "formatted": dt.strftime("%Y-%m-%d %H:%M:%S"),
+                        "year": dt.year,
+                        "month": dt.month,
+                        "day": dt.day
+                    }
+                })
+        
+        elif operation == 'diff':
+            start = request.args.get('start')
+            end = request.args.get('end')
+            if start and end:
+                start_dt = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                diff = end_dt - start_dt
+                return jsonify({
+                    "difference_seconds": diff.total_seconds(),
+                    "difference_days": diff.days,
+                    "start": start,
+                    "end": end
+                })
+        
+        return jsonify({"error": "Invalid operation. Use: current, convert, diff"})
+    
+    except Exception as e:
+        return jsonify({"error": "Time operation failed"}), 400
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint not found", "hint": "Check available endpoints at /"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error"}), 500
+
+if __name__ == '__main__':
+    print("🚀 Black Box API Challenge Server Starting...")
+    print("📍 Available at: http://localhost:5000")
+    print("📋 Endpoints list: http://localhost:5000")
+    app.run(debug=True, host='0.0.0.0', port=5000)
